@@ -1,34 +1,14 @@
 const express = require("express");
 const router = express.Router();
-const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const User = require("../models/user");
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
+const generateAccessToken = require("../middleware/generateAccessToken");
+const authenticateRefreshToken = require("../middleware/authenticateRefreshToken");
+const generateRefreshToken = require("../middleware/generateRefreshToken");
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
+const jwt = require("jsonwebtoken");
 
-// Edit user
-router.put("/edit", authenticateToken, async (req, res) => {
-  const userId = req.user.id;
-
-  try {
-    const status = await User.findByIdAndUpdate(userId, {
-      firstname: req.body.firstname,
-      lastname: req.body.lastname,
-      photo: req.body.photo,
-      about: req.body.about,
-      email: req.body.email,
-      phone: req.body.phone,
-      socialMedia: req.body.socialMedia,
-      experience: req.body.experience,
-      skills: req.body.skills,
-      cv: req.body.cv
-    });
-
-    res.json(status ? "Successfully Updated" : "error happened");
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
+// http://localhost:4000/auth/register
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -36,34 +16,24 @@ router.post("/register", async (req, res) => {
     const {
       firstname,
       lastname,
-      photo,
-      about,
-      email,
-      phone,
+      nickname,
       profilePicture,
-      socialMedia,
-      experience,
-      skills,
+      email,
+      link,
       password,
-      cv
     } = req.body;
     const passwordHash = await bcrypt.hash(password, 10);
     const user = new User({
       firstname,
       lastname,
-      photo,
-      about,
-      email,
-      phone,
+      nickname,
       profilePicture,
-      socialMedia,
-      experience,
-      skills,
-      cv,
+      email,
+      link,
       passwordHash,
     });
     await user.save();
-    res.status(201).send("User registered successfully");
+    res.status(201).send({ message: "User registered successfully" });
   } catch (error) {
     res.status(500).send("Error registering user");
   }
@@ -81,7 +51,7 @@ router.post("/login", async (req, res) => {
     return res.status(400).send("Invalid email or password");
   }
   const accessToken = generateAccessToken(user);
-  const refreshToken = jwt.sign({ email: user.email }, REFRESH_TOKEN_SECRET);
+  const refreshToken = generateRefreshToken(user);
   res.json({ accessToken, refreshToken });
 });
 
@@ -91,41 +61,15 @@ router.post("/refresh", (req, res) => {
   if (!refreshToken) {
     return res.sendStatus(401);
   }
+
   jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, user) => {
     if (err) {
       return res.sendStatus(403);
     }
-    const accessToken = generateAccessToken({ email: user.email });
-    res.json({ accessToken });
+    const accessToken = generateAccessToken(user);
+    res.json({ accessToken: accessToken });
   });
 });
 
-// Middleware for verifying access token
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-  if (!token) {
-    return res.sendStatus(401);
-  }
-  jwt.verify(token, ACCESS_TOKEN_SECRET, (err, user) => {
-    if (err) {
-      return res.sendStatus(403);
-    }
-    res.locals.user = user;
-    req.user = user;
-    next();
-  });
-}
-
-// Helper function to generate access token
-function generateAccessToken(user) {
-  return jwt.sign({ email: user.email, id: user.id }, ACCESS_TOKEN_SECRET, {
-    expiresIn: "5m",
-  });
-}
-
 // Export the router
 module.exports = router;
-
-// Export the authenticateToken function
-module.exports.authenticateToken = authenticateToken;

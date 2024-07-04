@@ -2,10 +2,11 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const blogRoutes = require("./routes/blogRoutes");
-const projectRoutes = require("./routes/projectRoutes");
+const postRoutes = require("./routes/postRoutes");
+const replyRoutes = require("./routes/replyRoutes");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
+const likeRoutes = require("./routes/likeRoutes");
 const DATABASE_URL = process.env.DATABASE_URL;
 const cluster = require("cluster");
 const os = require("os");
@@ -38,10 +39,11 @@ mongoose
   .catch((err) => console.error("Error connecting to MongoDB Atlas:", err));
 
 // Use routes
-app.use("/blog", blogRoutes);
-app.use("/projects", projectRoutes);
-app.use("/users", userRoutes);
 app.use("/auth", authRoutes);
+app.use("/users", userRoutes);
+app.use("/posts", postRoutes);
+app.use("/replies", replyRoutes);
+app.use("/likes", likeRoutes);
 
 app.listen(4000, () => {
   console.log(`Server running on ${process.pid} @ 4000`);
